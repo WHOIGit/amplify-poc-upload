@@ -1,17 +1,14 @@
 import os
-import boto3
+
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 
+from amqp import amqp_publish
+from s3 import s3_upload
+
+
 app = FastAPI()
 
-# Configure S3 client using environment variables
-s3_client = boto3.client(
-    's3',
-    endpoint_url=os.environ['S3_URL'],
-    aws_access_key_id=os.environ['S3_ACCESS_KEY'],
-    aws_secret_access_key=os.environ['S3_SECRET_KEY']
-)
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -23,14 +20,20 @@ async def upload_file(file: UploadFile = File(...)):
         file_contents = await file.read()
 
         # Upload the file to S3
-        s3_client.put_object(
-            Bucket=bucket_name,
-            Key=file.filename,
-            Body=file_contents
-        )
+        await s3_upload(file_contents, bucket_name, file.filename)
+
+        # Publish a message to the exchange
+        message = {
+            "type": "upload",
+            "bucket": bucket_name,
+            "key": file.filename
+        }
+
+        await amqp_publish(message)
 
         return JSONResponse(content={"message": "File uploaded successfully"}, status_code=200)
     except Exception as e:
+        print(e)
         return JSONResponse(content={"error": str(e)}, status_code=500)
     
 
