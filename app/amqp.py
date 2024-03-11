@@ -1,7 +1,7 @@
 import os
 
 import json
-import pika
+import aio_pika
 
 
 async def amqp_publish(message):
@@ -11,16 +11,15 @@ async def amqp_publish(message):
 
     exchange_name = os.environ['RABBITMQ_EXCHANGE']
 
-    credentials = pika.PlainCredentials(user, password)
-    connection = pika.BlockingConnection(
-        pika.ConnectionParameters(host, credentials=credentials)
+    connection = await aio_pika.connect_robust(
+        f"amqp://{user}:{password}@{host}/"
     )
-    channel = connection.channel()
+    async with connection:
+        channel = await connection.channel()
 
-    channel.exchange_declare(exchange=exchange_name, exchange_type='fanout')
+        exchange = await channel.declare_exchange(exchange_name, aio_pika.ExchangeType.FANOUT)
 
-    channel.basic_publish(exchange=exchange_name,
-                          routing_key='',
-                          body=json.dumps(message))
-
-    connection.close()
+        await exchange.publish(
+            aio_pika.Message(body=json.dumps(message).encode()),
+            routing_key=''
+        )
