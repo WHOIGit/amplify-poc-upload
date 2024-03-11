@@ -1,5 +1,5 @@
 fastapi
-boto3
+aiobotocore
 uvicorn
 python-multipart
-pika
+aio_pika
