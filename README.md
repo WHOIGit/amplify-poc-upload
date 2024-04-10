@@ -58,5 +58,4 @@ Upon successful upload, the file will be stored in the specified S3 bucket, and 
 ## File Structure
 
 - `app.py`: The main FastAPI application file that defines the `/upload` endpoint.
-- `amqp.py`: Contains the `amqp_publish` function for publishing messages to RabbitMQ.
 - `s3.py`: Contains the `s3_upload` function for uploading files to S3 compatible storage.

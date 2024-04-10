@@ -3,7 +3,7 @@ import os
 from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 
-from amqp import amqp_publish
+from amqp.rabbit import aio_publish
 from s3 import s3_upload
 
 
@@ -29,7 +29,11 @@ async def upload_file(file: UploadFile = File(...)):
             "key": file.filename
         }
 
-        await amqp_publish(message)
+        host = os.environ['RABBITMQ_HOST']
+        user = os.environ['RABBITMQ_USER']
+        password = os.environ['RABBITMQ_PASSWORD']
+        exchange_name = os.environ['RABBITMQ_EXCHANGE']
+        await aio_publish(message, host, user, password, exchange_name, exchange_type='fanout', routing_key='')
 
         return JSONResponse(content={"message": "File uploaded successfully"}, status_code=200)
     except Exception as e:
@@ -40,3 +44,4 @@ async def upload_file(file: UploadFile = File(...)):
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="127.0.0.1", port=8000)
+
