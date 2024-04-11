@@ -4,11 +4,14 @@ from fastapi import FastAPI, File, UploadFile
 from fastapi.responses import JSONResponse
 
 from amqp.rabbit import aio_publish
-from s3 import s3_upload
+from storage.s3 import AsyncBucketStore, aiobotocore
 
 
 app = FastAPI()
 
+S3_END=os.environ['S3_URL']
+S3_KEY=os.environ['S3_ACCESS_KEY']
+S3_PWD=os.environ['S3_SECRET_KEY']
 
 @app.post("/upload")
 async def upload_file(file: UploadFile = File(...)):
@@ -18,9 +21,14 @@ async def upload_file(file: UploadFile = File(...)):
 
         # Read the file contents
         file_contents = await file.read()
+        storage_filename = file.filename
 
         # Upload the file to S3
-        await s3_upload(file_contents, bucket_name, file.filename)
+        s3_session = aiobotocore.session.get_session()
+        async with s3_session.create_client('s3', endpoint_url=S3_END, 
+                                         aws_secret_access_key=S3_PWD, 
+                                         aws_access_key_id=S3_KEY) as s3_client:
+            await AsyncBucketStore(s3_client, bucket_name).put(storage_filename, file_contents)
 
         # Publish a message to the exchange
         message = {
